@@ -15,6 +15,9 @@
           .card-shadow { box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1); }
           .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
           .fade-enter-from, .fade-leave-to { opacity: 0; }
+          .list-move, .list-enter-active, .list-leave-active { transition: all 0.5s ease; }
+          .list-enter-from, .list-leave-to { opacity: 0; transform: translateX(30px); }
+          .list-leave-active { position: absolute; }
       </style>
   </head>
   <body class="text-slate-600 pb-24">
@@ -31,9 +34,8 @@
               </div>
           </header>
 
-          <!-- 1. 行程頁面 (更新：加入導出功能) -->
+          <!-- 1. 行程頁面 -->
           <div v-if="currentTab === 'itinerary'" class="p-4 space-y-4 pb-24">
-              <!-- 日期選單 -->
               <div class="flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
                   <button v-for="(day, index) in itinerary" :key="index"
                       @click="currentDayIndex = index"
@@ -43,61 +45,44 @@
                   </button>
               </div>
 
-              <!-- 行程列表 -->
-              <div class="space-y-3">
-                  <div v-for="(event, idx) in itinerary[currentDayIndex].events" :key="idx" class="bg-white p-4 rounded-2xl card-shadow border-l-4 border-teal-400 relative group">
-                      <button @click="toggleEdit(currentDayIndex, idx)" class="absolute top-2 right-2 text-gray-300 hover:text-teal-500">✎</button>
-                      
-                      <div v-if="!event.isEditing">
-                          <div class="flex items-center gap-3 mb-2">
-                              <span class="bg-teal-50 text-teal-600 text-xs font-bold px-2 py-1 rounded">{{ event.time }}</span>
-                              <h3 class="font-bold text-gray-700">{{ event.activity }}</h3>
-                          </div>
-                          <div class="flex items-center justify-between text-sm text-gray-500 pl-1">
-                              <div class="flex items-center gap-1 truncate max-w-[70%]">
-                                  <span>📍</span> {{ event.location }}
+              <div class="space-y-3 relative">
+                  <transition-group name="list">
+                      <div v-for="(event, idx) in itinerary[currentDayIndex].events" :key="event.id || idx" class="bg-white p-4 rounded-2xl card-shadow border-l-4 border-teal-400 relative group mb-3">
+                          <button @click="toggleEdit(currentDayIndex, idx)" class="absolute top-2 right-2 text-gray-300 hover:text-teal-500">✎</button>
+                          <div v-if="!event.isEditing">
+                              <div class="flex items-center gap-3 mb-2">
+                                  <span class="bg-teal-50 text-teal-600 text-xs font-bold px-2 py-1 rounded">{{ event.time }}</span>
+                                  <h3 class="font-bold text-gray-700">{{ event.activity }}</h3>
                               </div>
-                              <a :href="getMapLink(event.location)" target="_blank" class="text-teal-500 font-bold text-xs flex items-center gap-1 bg-teal-50 px-2 py-1 rounded-full hover:bg-teal-100">
-                                  導航 ↗
-                              </a>
+                              <div class="flex items-center justify-between text-sm text-gray-500 pl-1">
+                                  <div class="flex items-center gap-1 truncate max-w-[70%]"><span>📍</span> {{ event.location }}</div>
+                                  <a :href="getMapLink(event.location)" target="_blank" class="text-teal-500 font-bold text-xs flex items-center gap-1 bg-teal-50 px-2 py-1 rounded-full hover:bg-teal-100">導航 ↗</a>
+                              </div>
+                              <div v-if="event.transport" class="mt-2 text-xs text-slate-400 flex items-center gap-1 border-t border-gray-50 pt-2"><span>🚇</span> {{ event.transport }}</div>
                           </div>
-                          <div v-if="event.transport" class="mt-2 text-xs text-slate-400 flex items-center gap-1 border-t border-gray-50 pt-2">
-                              <span>🚇</span> {{ event.transport }}
+                          <div v-else class="space-y-2">
+                              <div class="flex gap-2">
+                                  <input v-model="event.time" type="time" class="w-1/3 bg-gray-50 p-2 rounded text-sm">
+                                  <input v-model="event.activity" type="text" placeholder="活動名稱" class="w-2/3 bg-gray-50 p-2 rounded text-sm font-bold">
+                              </div>
+                              <input v-model="event.location" type="text" placeholder="輸入地址" class="w-full bg-gray-50 p-2 rounded text-sm">
+                              <input v-model="event.transport" type="text" placeholder="交通方式" class="w-full bg-gray-50 p-2 rounded text-sm">
+                              <div class="flex gap-2">
+                                  <button @click="deleteEvent(currentDayIndex, idx)" class="w-1/4 bg-red-100 text-red-400 text-xs font-bold py-2 rounded-lg">刪除</button>
+                                  <button @click="toggleEdit(currentDayIndex, idx)" class="w-3/4 bg-teal-500 text-white text-xs font-bold py-2 rounded-lg">完成</button>
+                              </div>
                           </div>
                       </div>
-
-                      <div v-else class="space-y-2">
-                          <div class="flex gap-2">
-                              <input v-model="event.time" type="time" class="w-1/3 bg-gray-50 p-2 rounded text-sm">
-                              <input v-model="event.activity" type="text" placeholder="活動名稱" class="w-2/3 bg-gray-50 p-2 rounded text-sm font-bold">
-                          </div>
-                          <input v-model="event.location" type="text" placeholder="輸入地址" class="w-full bg-gray-50 p-2 rounded text-sm">
-                          <input v-model="event.transport" type="text" placeholder="交通方式" class="w-full bg-gray-50 p-2 rounded text-sm">
-                          <button @click="toggleEdit(currentDayIndex, idx)" class="w-full bg-teal-500 text-white text-xs font-bold py-2 rounded-lg">完成</button>
-                      </div>
-                  </div>
+                  </transition-group>
                   <button @click="addEvent(currentDayIndex)" class="w-full py-3 border-2 border-dashed border-teal-200 text-teal-400 rounded-xl font-bold text-sm hover:bg-teal-50 transition">+ 新增行程</button>
               </div>
-
-              <!-- 新增：分享與導出區塊 -->
-              <div class="mt-8 p-4 bg-white rounded-xl border border-teal-100 shadow-sm">
-                  <h3 class="font-bold text-teal-600 mb-3 text-sm flex items-center gap-2">📤 分享我的行程</h3>
-                  <div class="grid grid-cols-2 gap-2">
-                      <button @click="copyItineraryText" class="bg-teal-500 text-white py-2.5 rounded-lg text-xs font-bold shadow-md shadow-teal-100 active:scale-95 transition flex items-center justify-center gap-1">
-                          📋 複製文字 (IG/WS)
-                      </button>
-                      <button @click="exportItinerary" class="bg-white border border-teal-200 text-teal-600 py-2.5 rounded-lg text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1">
-                          📥 導出備份檔
-                      </button>
-                  </div>
-                  <label class="block mt-2 text-center">
-                      <span class="text-[10px] text-gray-400 underline cursor-pointer">導入舊行程備份</span>
-                      <input type="file" @change="importItinerary" accept=".json" class="hidden">
-                  </label>
+              
+              <div class="mt-4 text-center">
+                  <button @click="copyItineraryText" class="text-teal-500 text-xs font-bold underline">📋 複製行程文字分享</button>
               </div>
           </div>
 
-          <!-- 2. 購物記帳頁面 -->
+          <!-- 2. 購物記帳頁面 (更新：極簡分類) -->
           <div v-if="currentTab === 'shopping'" class="p-4 space-y-4">
               <div class="mint-gradient rounded-2xl p-5 text-white shadow-lg shadow-teal-200">
                   <div class="flex justify-between items-end">
@@ -112,7 +97,18 @@
                   </div>
               </div>
 
+              <!-- 新增物品區 -->
               <div class="bg-white p-4 rounded-2xl card-shadow space-y-3">
+                  <!-- 極簡分類選擇器 -->
+                  <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                      <button v-for="cat in categories" :key="cat.id" 
+                          @click="newItem.category = cat.id"
+                          :class="newItem.category === cat.id ? cat.activeClass : 'bg-gray-50 text-gray-400 hover:bg-gray-100'"
+                          class="px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap">
+                          {{ cat.name }}
+                      </button>
+                  </div>
+
                   <div class="flex gap-2">
                       <input v-model="newItem.name" type="text" placeholder="物品名稱" class="flex-1 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
                       <input v-model="newItem.forWhom" type="text" placeholder="給誰?" class="w-20 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
@@ -132,15 +128,24 @@
                   </div>
               </div>
 
+              <!-- 列表顯示 (更新：無圖時顯示文字頭像) -->
               <div class="space-y-2 pb-20">
-                  <div v-for="(item, index) in shoppingList" :key="index" class="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 items-center">
-                      <div @click="item.image ? openImageModal(item.image) : null" class="w-12 h-12 bg-gray-50 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer border border-gray-100">
+                  <div v-for="(item, index) in shoppingList" :key="index" class="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 items-center relative overflow-hidden">
+                      <!-- 左側縮圖或文字頭像 -->
+                      <div @click="item.image ? openImageModal(item.image) : null" class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer ml-1" :class="!item.image ? getCategoryBg(item.category) : 'bg-gray-50 border border-gray-100'">
                           <img v-if="item.image" :src="item.image" class="w-full h-full object-cover">
-                          <span v-else class="text-xs text-gray-300">無圖</span>
+                          <!-- 無圖時顯示分類首字 -->
+                          <span v-else class="text-lg font-bold opacity-80" :class="getCategoryText(item.category)">
+                              {{ getCategoryName(item.category).charAt(0) }}
+                          </span>
                       </div>
+
                       <div class="flex-1 min-w-0">
                           <div class="font-bold text-gray-700 truncate">{{ item.name }}</div>
-                          <div class="text-xs text-gray-400 mt-0.5">給: <span class="bg-orange-100 text-orange-500 px-1 rounded">{{ item.forWhom || '自己' }}</span></div>
+                          <div class="flex gap-2 mt-1">
+                              <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-400">{{ getCategoryName(item.category) }}</span>
+                              <span v-if="item.forWhom" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-400">給: {{ item.forWhom }}</span>
+                          </div>
                       </div>
                       <div class="text-right">
                           <div class="font-bold text-teal-600">¥{{ item.price }}</div>
@@ -148,10 +153,6 @@
                       </div>
                   </div>
                   <div v-if="shoppingList.length === 0" class="text-center text-gray-300 py-10 text-sm">還沒買東西呢 🛍️</div>
-              </div>
-
-              <div class="fixed bottom-24 right-4">
-                  <button @click="exportShopping" class="bg-white text-teal-600 p-3 rounded-full shadow-lg border border-teal-100 font-bold text-xs flex items-center gap-1">📥 導出清單</button>
               </div>
           </div>
 
@@ -162,11 +163,9 @@
                   <span class="text-xs text-teal-500 font-bold mt-1">新增今日照片</span>
                   <input type="file" ref="photoInput" accept="image/*" class="hidden" @change="handlePhotoUpload">
               </div>
-
               <div v-for="(group, date) in groupedPhotos" :key="date" class="mb-6">
                   <h3 class="font-bold text-teal-600 mb-2 pl-1 flex items-center gap-2">
-                      📅 {{ date }}
-                      <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ group.length }} 張</span>
+                      📅 {{ date }} <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ group.length }} 張</span>
                   </h3>
                   <div class="grid grid-cols-3 gap-2">
                       <div v-for="(photo, idx) in group" :key="idx" class="aspect-square rounded-lg overflow-hidden relative group bg-gray-100">
@@ -175,27 +174,28 @@
                       </div>
                   </div>
               </div>
-              
-              <div v-if="photos.length === 0" class="text-center text-gray-300 py-10">暫無照片，快去拍照吧！</div>
-
-              <div class="mt-8 p-4 bg-white rounded-xl border border-gray-100">
-                  <h3 class="font-bold text-gray-600 mb-3 text-sm">數據管理</h3>
-                  <div class="flex gap-2">
-                      <button @click="exportPhotos" class="flex-1 bg-teal-100 text-teal-700 py-2 rounded-lg text-xs font-bold">導出備份</button>
-                      <label class="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-xs font-bold text-center cursor-pointer">
-                          導入備份
-                          <input type="file" @change="importPhotos" accept=".json" class="hidden">
-                      </label>
-                  </div>
-              </div>
+              <div v-if="photos.length === 0" class="text-center text-gray-300 py-10">暫無照片</div>
           </div>
 
           <!-- 4. 工具頁面 -->
           <div v-if="currentTab === 'tools'" class="p-4 space-y-4">
+              <div class="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm">
+                  <h3 class="font-bold text-teal-600 mb-3 flex items-center gap-2">💾 數據備份中心</h3>
+                  <p class="text-xs text-gray-400 mb-4">將行程、記帳、照片一次性打包下載，防止資料遺失。</p>
+                  <div class="grid grid-cols-2 gap-3">
+                      <button @click="exportAllData" class="bg-teal-500 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-teal-100 active:scale-95 transition flex flex-col items-center justify-center gap-1">
+                          <span class="text-xl">☁️</span> 一鍵下載備份
+                      </button>
+                      <label class="bg-white border-2 border-dashed border-teal-200 text-teal-500 py-3 rounded-xl font-bold text-sm cursor-pointer active:scale-95 transition flex flex-col items-center justify-center gap-1 hover:bg-teal-50">
+                          <span class="text-xl">🔄</span> 導入完整備份
+                          <input type="file" @change="importAllData" accept=".json" class="hidden">
+                      </label>
+                  </div>
+              </div>
               <div class="bg-white p-5 rounded-2xl card-shadow">
                   <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">💱 匯率計算</h3>
                   <div class="flex items-center gap-2 mb-4">
-                      <span class="text-xs text-gray-400">設定匯率: 1 JPY = </span>
+                      <span class="text-xs text-gray-400">設定: 1 JPY = </span>
                       <input v-model.number="rate" type="number" step="0.001" class="w-20 bg-gray-50 p-1 text-center rounded text-sm">
                       <span class="text-xs text-gray-400">HKD</span>
                   </div>
@@ -213,20 +213,11 @@
               </div>
               <div class="grid grid-cols-2 gap-4">
                   <a href="https://translate.google.com/?sl=ja&tl=zh-TW&op=translate" target="_blank" class="bg-blue-50 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-blue-100 transition">
-                      <span class="text-3xl">🗣️</span>
-                      <span class="font-bold text-blue-600 text-sm">Google 翻譯</span>
+                      <span class="text-3xl">🗣️</span> <span class="font-bold text-blue-600 text-sm">Google 翻譯</span>
                   </a>
                   <a href="https://weathernews.jp/onebox/34.693748/135.502186" target="_blank" class="bg-orange-50 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-orange-100 transition">
-                      <span class="text-3xl">🌤️</span>
-                      <span class="font-bold text-orange-600 text-sm">大阪天氣</span>
+                      <span class="text-3xl">🌤️</span> <span class="font-bold text-orange-600 text-sm">大阪天氣</span>
                   </a>
-              </div>
-              <div class="bg-white p-4 rounded-2xl border border-gray-100">
-                  <h3 class="font-bold text-gray-700 mb-2 text-sm">快速連結</h3>
-                  <div class="space-y-2">
-                      <a href="https://www.hongkongairlines.com/zh_HK/manage-booking" target="_blank" class="block text-xs text-gray-500 hover:text-teal-500 p-2 bg-gray-50 rounded-lg">✈️ 香港航空 (HX618)</a>
-                      <a href="https://www.westjr.co.jp/global/tc/" target="_blank" class="block text-xs text-gray-500 hover:text-teal-500 p-2 bg-gray-50 rounded-lg">🚆 JR 西日本時刻表</a>
-                  </div>
               </div>
           </div>
 
@@ -255,26 +246,39 @@
                   const currentDayIndex = ref(0);
                   
                   const defaultItinerary = [
-                      { date: '12/05 (四)', events: [{ time: '08:00', activity: '香港機場集合', location: '香港國際機場 T1', transport: '機場快線', isEditing: false }, { time: '11:30', activity: 'HX618 起飛', location: 'HKG -> KIX', transport: '飛機', isEditing: false }, { time: '16:00', activity: '抵達大阪', location: '關西國際機場', transport: '入境', isEditing: false }, { time: '18:00', activity: '前往市區', location: '大阪市區', transport: '南海電鐵', isEditing: false }] },
-                      { date: '12/06 (五)', events: [{ time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
-                      { date: '12/07 (六)', events: [{ time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
-                      { date: '12/08 (日)', events: [{ time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
-                      { date: '12/09 (一)', events: [{ time: '10:00', activity: '最後購物', location: '難波', transport: '', isEditing: false }, { time: '13:00', activity: '前往機場', location: '關西國際機場', transport: '南海電鐵', isEditing: false }, { time: '16:00', activity: '準備登機', location: 'KIX -> HKG', transport: '飛機', isEditing: false }] }
+                      { date: '12/05 (四)', events: [{ id: 1, time: '08:00', activity: '香港機場集合', location: '香港國際機場 T1', transport: '機場快線', isEditing: false }, { id: 2, time: '11:30', activity: 'HX618 起飛', location: 'HKG -> KIX', transport: '飛機', isEditing: false }, { id: 3, time: '16:00', activity: '抵達大阪', location: '關西國際機場', transport: '入境', isEditing: false }, { id: 4, time: '18:00', activity: '前往市區', location: '大阪市區', transport: '南海電鐵', isEditing: false }] },
+                      { date: '12/06 (五)', events: [{ id: 5, time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
+                      { date: '12/07 (六)', events: [{ id: 6, time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
+                      { date: '12/08 (日)', events: [{ id: 7, time: '09:00', activity: '開始行程', location: '大阪', transport: '', isEditing: false }] },
+                      { date: '12/09 (一)', events: [{ id: 8, time: '10:00', activity: '最後購物', location: '難波', transport: '', isEditing: false }, { id: 9, time: '13:00', activity: '前往機場', location: '關西國際機場', transport: '南海電鐵', isEditing: false }, { id: 10, time: '16:00', activity: '準備登機', location: 'KIX -> HKG', transport: '飛機', isEditing: false }] }
                   ];
                   const itinerary = ref(defaultItinerary);
                   const shoppingList = ref([]);
-                  const newItem = ref({ name: '', price: '', forWhom: '' });
-                  const tempShopImg = ref(null);
-                  const rate = ref(0.052);
                   const photos = ref([]);
+                  const rate = ref(0.052);
+
+                  // 極簡分類配置 (移除 icon，使用顏色類)
+                  const categories = [
+                      { id: 'shop', name: '購物', activeClass: 'bg-pink-500 text-white shadow-md shadow-pink-200', bg: 'bg-pink-100', text: 'text-pink-500' },
+                      { id: 'food', name: '飲食', activeClass: 'bg-orange-500 text-white shadow-md shadow-orange-200', bg: 'bg-orange-100', text: 'text-orange-500' },
+                      { id: 'gift', name: '手信', activeClass: 'bg-purple-500 text-white shadow-md shadow-purple-200', bg: 'bg-purple-100', text: 'text-purple-500' },
+                      { id: 'transport', name: '交通', activeClass: 'bg-blue-500 text-white shadow-md shadow-blue-200', bg: 'bg-blue-100', text: 'text-blue-500' },
+                      { id: 'ticket', name: '門票', activeClass: 'bg-yellow-500 text-white shadow-md shadow-yellow-200', bg: 'bg-yellow-100', text: 'text-yellow-600' },
+                      { id: 'other', name: '其他', activeClass: 'bg-gray-600 text-white shadow-md shadow-gray-200', bg: 'bg-gray-100', text: 'text-gray-500' }
+                  ];
+                  const newItem = ref({ name: '', price: '', forWhom: '', category: 'shop' });
+                  const tempShopImg = ref(null);
+
                   const calcYen = ref('');
                   const calcHkd = ref('');
                   const showModal = ref(false);
                   const modalImage = ref('');
 
+                  const sortEvents = (dayIdx) => { itinerary.value[dayIdx].events.sort((a, b) => a.time.localeCompare(b.time)); };
+                  
                   onMounted(() => {
                       const savedItinerary = localStorage.getItem('minty_itinerary_v3');
-                      if (savedItinerary) itinerary.value = JSON.parse(savedItinerary);
+                      if (savedItinerary) { itinerary.value = JSON.parse(savedItinerary); itinerary.value.forEach((d, i) => sortEvents(i)); }
                       const savedShopping = localStorage.getItem('minty_shopping_v2');
                       if (savedShopping) shoppingList.value = JSON.parse(savedShopping);
                       const savedPhotos = localStorage.getItem('minty_photos_v2');
@@ -288,115 +292,43 @@
                   watch(photos, (v) => localStorage.setItem('minty_photos_v2', JSON.stringify(v)), { deep: true });
                   watch(rate, (v) => localStorage.setItem('minty_rate_v2', v));
 
-                  const toggleEdit = (dayIdx, eventIdx) => { itinerary.value[dayIdx].events[eventIdx].isEditing = !itinerary.value[dayIdx].events[eventIdx].isEditing; };
-                  const addEvent = (dayIdx) => { itinerary.value[dayIdx].events.push({ time: '12:00', activity: '新行程', location: '', transport: '', isEditing: true }); };
-                  const getMapLink = (loc) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc || '大阪')}`;
+                  const toggleEdit = (d, e) => { const evt = itinerary.value[d].events[e]; if(evt.isEditing) { evt.isEditing = false; sortEvents(d); } else { evt.isEditing = true; } };
+                  const addEvent = (d) => itinerary.value[d].events.push({ id: Date.now(), time: '12:00', activity: '新行程', location: '', isEditing: true });
+                  const deleteEvent = (d, e) => { if(confirm('刪除？')) itinerary.value[d].events.splice(e, 1); };
+                  const getMapLink = (l) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l || '大阪')}`;
+                  const copyItineraryText = () => { let t = "🇯🇵 行程分享\n"; itinerary.value.forEach(d => { t += `\n📅 ${d.date}\n`; [...d.events].sort((a,b)=>a.time.localeCompare(b.time)).forEach(e => t += `${e.time} ${e.activity} @${e.location||''}\n`); }); navigator.clipboard.writeText(t).then(()=>alert('已複製')); };
 
-                  // --- 新增：行程導出功能 ---
-                  const copyItineraryText = () => {
-                      let text = "🇯🇵 大阪之旅行程分享\n\n";
-                      itinerary.value.forEach(day => {
-                          text += `📅 ${day.date}\n`;
-                          day.events.forEach(e => {
-                              text += `${e.time} ${e.activity}`;
-                              if(e.location) text += ` @ ${e.location}`;
-                              text += "\n";
-                          });
-                          text += "\n";
-                      });
-                      navigator.clipboard.writeText(text).then(() => alert("已複製到剪貼簿！可直接貼上分享。"));
-                  };
-
-                  const exportItinerary = () => downloadJSON(itinerary.value, 'Japan_Itinerary_Backup.json');
-                  
-                  const importItinerary = (e) => {
-                      const file = e.target.files[0];
-                      if(!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                          try { itinerary.value = JSON.parse(evt.target.result); alert('行程已成功導入！'); } 
-                          catch(err) { alert('格式錯誤，請確認檔案正確。'); }
-                      };
-                      reader.readAsText(file);
-                  };
-                  // -------------------------
-
-                  const compressImage = (file, maxWidth, quality, callback) => {
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                          const img = new Image();
-                          img.onload = () => {
-                              const canvas = document.createElement('canvas');
-                              const ctx = canvas.getContext('2d');
-                              let w = img.width; let h = img.height;
-                              if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; }
-                              canvas.width = w; canvas.height = h;
-                              ctx.drawImage(img, 0, 0, w, h);
-                              callback(canvas.toDataURL('image/jpeg', quality));
-                          };
-                          img.src = evt.target.result;
-                      };
-                      reader.readAsDataURL(file);
-                  };
-
+                  const compressImage = (file, w, q, cb) => { const r = new FileReader(); r.onload = (e) => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); const x = c.getContext('2d'); let nw = i.width, nh = i.height; if(nw>w){nh*=w/nw;nw=w;} c.width=nw; c.height=nh; x.drawImage(i,0,0,nw,nh); cb(c.toDataURL('image/jpeg', q)); }; i.src = e.target.result; }; r.readAsDataURL(file); };
                   const handleShopImgUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 600, 0.6, (res) => tempShopImg.value = res); };
-                  const addItem = () => {
-                      if (!newItem.value.name || !newItem.value.price) return;
-                      shoppingList.value.unshift({ ...newItem.value, image: tempShopImg.value });
-                      newItem.value = { name: '', price: '', forWhom: '' };
-                      tempShopImg.value = null;
-                  };
-                  const deleteItem = (idx) => shoppingList.value.splice(idx, 1);
-                  const totalYen = computed(() => shoppingList.value.reduce((sum, item) => sum + (Number(item.price) || 0), 0));
+                  const addItem = () => { if (!newItem.value.name || !newItem.value.price) return; shoppingList.value.unshift({ ...newItem.value, image: tempShopImg.value }); newItem.value = { name: '', price: '', forWhom: '', category: 'shop' }; tempShopImg.value = null; };
+                  const deleteItem = (i) => shoppingList.value.splice(i, 1);
+                  const totalYen = computed(() => shoppingList.value.reduce((s, i) => s + (Number(i.price) || 0), 0));
                   const totalHKD = computed(() => (totalYen.value * rate.value).toFixed(1));
-
-                  const handlePhotoUpload = (e) => {
-                      if(e.target.files[0]) {
-                          compressImage(e.target.files[0], 800, 0.7, (res) => {
-                              const now = new Date();
-                              const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
-                              photos.value.unshift({ src: res, date: dateStr, timestamp: Date.now() });
-                          });
-                      }
-                  };
-                  const groupedPhotos = computed(() => {
-                      const groups = {};
-                      photos.value.forEach((photo, index) => {
-                          if (!groups[photo.date]) groups[photo.date] = [];
-                          groups[photo.date].push({ ...photo, originalIndex: index });
-                      });
-                      return groups;
-                  });
-                  const deletePhoto = (idx) => { if(confirm('刪除這張照片？')) photos.value.splice(idx, 1); };
                   
+                  // 分類輔助
+                  const getCategoryName = (id) => categories.find(c => c.id === id)?.name || '其他';
+                  const getCategoryBg = (id) => categories.find(c => c.id === id)?.bg || 'bg-gray-100';
+                  const getCategoryText = (id) => categories.find(c => c.id === id)?.text || 'text-gray-500';
+
+                  const handlePhotoUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 800, 0.7, (res) => { const d = new Date(); photos.value.unshift({ src: res, date: `${d.getMonth()+1}/${d.getDate()}`, originalIndex: 0 }); }); };
+                  const groupedPhotos = computed(() => { const g = {}; photos.value.forEach((p, i) => { if(!g[p.date]) g[p.date]=[]; g[p.date].push({...p, originalIndex: i}); }); return g; });
+                  const deletePhoto = (i) => { if(confirm('刪除？')) photos.value.splice(i, 1); };
+
+                  const exportAllData = () => { const fullData = { itinerary: itinerary.value, shopping: shoppingList.value, photos: photos.value, rate: rate.value, version: '4.1', backupDate: new Date().toLocaleString() }; downloadJSON(fullData, `Minty_Full_Backup_${Date.now()}.json`); };
+                  const importAllData = (e) => { const file = e.target.files[0]; if(!file) return; if(!confirm('確定要導入備份嗎？這將覆蓋當前所有資料！')) return; const reader = new FileReader(); reader.onload = (evt) => { try { const data = JSON.parse(evt.target.result); if(data.itinerary) itinerary.value = data.itinerary; if(data.shopping) shoppingList.value = data.shopping; if(data.photos) photos.value = data.photos; if(data.rate) rate.value = data.rate; itinerary.value.forEach((d, i) => sortEvents(i)); alert('🎉 數據已成功恢復！'); } catch(err) { alert('備份檔格式錯誤或損壞。'); } }; reader.readAsText(file); };
+
                   const openImageModal = (src) => { modalImage.value = src; showModal.value = true; };
-                  const exportShopping = () => downloadJSON(shoppingList.value, 'Shopping_List.json');
-                  const exportPhotos = () => downloadJSON(photos.value, 'Japan_Photos.json');
-                  const importPhotos = (e) => {
-                      const file = e.target.files[0];
-                      if(!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (evt) => { try { photos.value = JSON.parse(evt.target.result); alert('照片已恢復'); } catch(e){alert('錯誤');} };
-                      reader.readAsText(file);
-                  };
                   const updateHkd = () => { calcHkd.value = (calcYen.value * rate.value).toFixed(2); };
                   const updateYen = () => { calcYen.value = (calcHkd.value / rate.value).toFixed(0); };
-                  const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                  const downloadJSON = (data, filename) => {
-                      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-                      const link = document.createElement('a');
-                      link.href = URL.createObjectURL(blob);
-                      link.download = filename;
-                      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                  };
+                  const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  const downloadJSON = (d, n) => { const b = new Blob([JSON.stringify(d)], {type:'application/json'}); const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = n; document.body.appendChild(l); l.click(); document.body.removeChild(l); };
 
                   return {
-                      currentTab, currentDayIndex, itinerary,
-                      shoppingList, newItem, rate, totalYen, totalHKD, tempShopImg,
-                      photos, groupedPhotos, calcYen, calcHkd, showModal, modalImage,
-                      toggleEdit, addEvent, getMapLink, copyItineraryText, exportItinerary, importItinerary,
-                      addItem, deleteItem, exportShopping, handleShopImgUpload,
-                      handlePhotoUpload, deletePhoto, exportPhotos, importPhotos, openImageModal,
+                      currentTab, currentDayIndex, itinerary, shoppingList, newItem, rate, totalYen, totalHKD, tempShopImg, photos, groupedPhotos, calcYen, calcHkd, showModal, modalImage, categories,
+                      toggleEdit, addEvent, deleteEvent, getMapLink, copyItineraryText,
+                      addItem, deleteItem, handleShopImgUpload, getCategoryName, getCategoryBg, getCategoryText,
+                      handlePhotoUpload, deletePhoto, openImageModal,
+                      exportAllData, importAllData,
                       updateHkd, updateYen, formatNumber
                   };
               }
