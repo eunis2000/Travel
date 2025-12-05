@@ -3,7 +3,7 @@
   <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <title>Minty Travel v5.4 ✈️</title>
+      <title>Minty Travel v6.2 (Copy) ✈️</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
       <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
@@ -77,9 +77,20 @@
                   <button @click="addEvent(currentDayIndex)" class="w-full py-3 border-2 border-dashed border-teal-200 text-teal-400 rounded-xl font-bold text-sm hover:bg-teal-50 transition">+ 新增行程</button>
               </div>
               
-              <div class="mt-4 flex justify-center gap-4">
-                  <button @click="copyItineraryText" class="text-teal-500 text-xs font-bold underline">📋 複製文字</button>
-                  <button @click="exportSpecific('itinerary')" class="text-teal-500 text-xs font-bold underline">📥 導出行程檔</button>
+              <!-- 分享區塊優化 -->
+              <div class="mt-6 bg-white p-4 rounded-2xl border border-teal-100 shadow-sm space-y-3">
+                  <h3 class="text-xs font-bold text-gray-400 mb-2">📤 分享與導出</h3>
+                  <div class="grid grid-cols-2 gap-3">
+                      <button @click="copyDayItineraryText" class="bg-teal-50 text-teal-600 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1 border border-teal-200">
+                          📋 複製本日 ({{ itinerary[currentDayIndex].date.split(' ')[0] }})
+                      </button>
+                      <button @click="copyItineraryText" class="bg-teal-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-teal-100 active:scale-95 transition flex items-center justify-center gap-1">
+                          📑 複製整趟旅程
+                      </button>
+                  </div>
+                  <button @click="exportSpecific('itinerary')" class="w-full text-gray-400 text-[10px] font-bold underline hover:text-teal-500 py-1">
+                      📥 下載行程備份檔 (.json)
+                  </button>
               </div>
           </div>
 
@@ -99,6 +110,13 @@
                   </div>
               </div>
 
+              <!-- AA 設定按鈕 -->
+              <div class="flex justify-end">
+                  <button @click="showMemberSettings = true" class="text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-teal-100 transition">
+                      ⚙️ 設定/新增旅伴
+                  </button>
+              </div>
+
               <!-- 分類統計條 -->
               <div v-if="categoryStats.length > 0" class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
                   <div v-for="stat in categoryStats" :key="stat.id" class="bg-white p-3 rounded-xl border border-gray-100 min-w-[110px] flex-shrink-0 shadow-sm">
@@ -112,6 +130,7 @@
 
               <!-- 新增物品區 -->
               <div class="bg-white p-4 rounded-2xl card-shadow space-y-3">
+                  <!-- 分類 -->
                   <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                       <button v-for="cat in categories" :key="cat.id" 
                           @click="newItem.category = cat.id"
@@ -121,18 +140,31 @@
                       </button>
                   </div>
 
+                  <!-- 名稱與對象 -->
                   <div class="flex gap-2">
                       <input v-model="newItem.name" type="text" placeholder="物品名稱" class="flex-1 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
-                      <input v-model="newItem.forWhom" type="text" placeholder="給誰?" class="w-20 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
+                      <input v-model="newItem.forWhom" type="text" placeholder="備註/給誰?" class="w-24 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
                   </div>
                   
-                  <!-- 雙幣輸入區 -->
+                  <!-- AA 分帳選擇器 -->
+                  <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl">
+                      <span class="text-[10px] font-bold text-gray-400 whitespace-nowrap">AA分帳:</span>
+                      <div class="flex gap-1 flex-1 overflow-x-auto hide-scrollbar">
+                          <button v-for="(member, idx) in members" :key="idx"
+                              @click="toggleMember(idx)"
+                              :class="newItem.sharedWith.includes(idx) ? 'bg-teal-500 text-white shadow-sm' : 'bg-white text-gray-400 border border-gray-200'"
+                              class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition whitespace-nowrap">
+                              {{ member }}
+                          </button>
+                      </div>
+                  </div>
+
+                  <!-- 價格與拍照 -->
                   <div class="flex gap-2 items-center">
                       <div class="flex-1 flex gap-1">
                           <input v-model.number="newItem.price" type="number" placeholder="JPY" class="w-1/2 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
                           <input v-model.number="newItem.priceHKD" type="number" placeholder="HKD(選填)" class="w-1/2 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200 border border-dashed border-gray-300">
                       </div>
-                      
                       <div class="relative">
                           <button @click="$refs.shopCam.click()" class="p-2 rounded-xl transition" :class="tempShopImg ? 'bg-teal-100 text-teal-600' : 'bg-gray-100 text-gray-400'">📷</button>
                           <input type="file" ref="shopCam" accept="image/*" capture="environment" class="hidden" @change="handleShopImgUpload">
@@ -156,18 +188,18 @@
                       </div>
                       <div class="flex-1 min-w-0">
                           <div class="font-bold text-gray-700 truncate">{{ item.name }}</div>
-                          <div class="flex gap-2 mt-1">
+                          <div class="flex flex-wrap gap-1 mt-1">
                               <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-400">{{ getCategoryName(item.category) }}</span>
-                              <span v-if="item.forWhom" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-400">給: {{ item.forWhom }}</span>
-                              <span class="text-[10px] px-1.5 py-0.5 text-gray-300">{{ item.date }}</span>
+                              <!-- AA 標籤 -->
+                              <span v-if="item.sharedWith && item.sharedWith.length > 0 && !(item.sharedWith.length === 1 && item.sharedWith[0] === 0)" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-500 flex items-center gap-0.5">
+                                  👥 {{ getSharedNames(item.sharedWith) }}
+                              </span>
+                              <span v-else-if="item.forWhom" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-400">給: {{ item.forWhom }}</span>
                           </div>
                       </div>
                       <div class="text-right flex flex-col items-end">
-                          <!-- 智能顯示金額 -->
                           <div v-if="item.priceHKD" class="font-bold text-indigo-600">HK${{ item.priceHKD }}</div>
                           <div v-else class="font-bold text-teal-600">¥{{ item.price }}</div>
-                          
-                          <!-- 輔助資訊 -->
                           <div v-if="item.priceHKD" class="text-[10px] text-gray-400 bg-gray-100 px-1 rounded mt-0.5">電子支付</div>
                           <div v-else class="text-[10px] text-gray-300">約 HK${{ (item.price * rate).toFixed(0) }}</div>
                       </div>
@@ -176,7 +208,8 @@
                   <div v-if="shoppingList.length === 0" class="text-center text-gray-300 py-10 text-sm">還沒買東西呢 🛍️</div>
               </div>
               
-              <div class="fixed bottom-24 right-4">
+              <div class="fixed bottom-24 right-4 flex flex-col gap-2 items-end">
+                  <button @click="showSettlement = true" class="bg-indigo-500 text-white p-3 rounded-full shadow-lg shadow-indigo-200 font-bold text-xs flex items-center gap-1">💰 查看結算</button>
                   <button @click="exportSpecific('shopping')" class="bg-white text-teal-600 p-3 rounded-full shadow-lg border border-teal-100 font-bold text-xs flex items-center gap-1">📥 導出清單</button>
               </div>
           </div>
@@ -210,13 +243,11 @@
           <div v-if="currentTab === 'tools'" class="p-4 space-y-4">
               <div class="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm">
                   <h3 class="font-bold text-teal-600 mb-3 flex items-center gap-2">💾 數據備份中心</h3>
-                  
                   <div class="mb-4 pb-4 border-b border-gray-100">
                       <button @click="exportAllData" class="w-full bg-teal-500 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-teal-100 active:scale-95 transition flex items-center justify-center gap-2">
                           <span class="text-xl">📦</span> 下載完整備份 (All-in-One)
                       </button>
                   </div>
-
                   <div class="mb-4">
                       <p class="text-xs font-bold text-gray-500 mb-2">📅 按日期導出 (行程+記帳+照片)</p>
                       <div class="flex flex-wrap gap-2 mb-3">
@@ -229,13 +260,11 @@
                           📥 導出選中日期資料
                       </button>
                   </div>
-
                   <label class="block w-full bg-gray-50 border-2 border-dashed border-gray-200 text-gray-400 py-2 rounded-xl font-bold text-xs text-center cursor-pointer hover:bg-gray-100 transition">
                       🔄 導入備份檔案
                       <input type="file" @change="importAllData" accept=".json" class="hidden">
                   </label>
               </div>
-
               <div class="bg-white p-5 rounded-2xl card-shadow">
                   <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">💱 匯率計算</h3>
                   <div class="flex items-center gap-2 mb-4">
@@ -255,7 +284,6 @@
                       </div>
                   </div>
               </div>
-              
               <div class="pt-4 pb-8 text-center">
                   <button @click="resetAllData" class="text-[10px] text-red-300 hover:text-red-500 underline">⚠️ App 無法使用？點此重置所有數據</button>
               </div>
@@ -268,10 +296,60 @@
               <button @click="currentTab = 'tools'" :class="currentTab === 'tools' ? 'text-teal-500' : 'text-gray-400'" class="flex flex-col items-center gap-1 transition"><span class="text-xl">🧰</span> 工具</button>
           </nav>
           
+          <!-- Modal: 圖片查看 -->
           <transition name="fade">
               <div v-if="showModal" @click="showModal = false" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
                   <img :src="modalImage" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
                   <button class="absolute top-4 right-4 text-white text-3xl">×</button>
+              </div>
+          </transition>
+
+          <!-- Modal: 成員設定 (無限新增) -->
+          <transition name="fade">
+              <div v-if="showMemberSettings" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                  <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl flex flex-col max-h-[80vh]">
+                      <h3 class="font-bold text-teal-600 mb-2 text-center">👥 設定同行旅伴</h3>
+                      <p class="text-[10px] text-gray-400 text-center mb-4">可自由新增，修改名字會即時更新</p>
+                      
+                      <div class="space-y-3 overflow-y-auto flex-1 hide-scrollbar mb-4">
+                          <div v-for="(m, idx) in members" :key="idx" class="flex items-center gap-2">
+                              <span class="text-xs text-gray-400 w-6">#{{idx+1}}</span>
+                              <input v-model="members[idx]" type="text" class="flex-1 bg-gray-50 p-2 rounded-lg text-sm border border-gray-100 focus:border-teal-300 outline-none" :placeholder="'旅伴 ' + (idx+1)" :disabled="idx===0">
+                          </div>
+                      </div>
+                      
+                      <div class="flex gap-2 mb-2">
+                          <input v-model="newMemberName" type="text" placeholder="輸入新旅伴名字" class="flex-1 bg-gray-50 p-2 rounded-lg text-sm border border-gray-100 outline-none">
+                          <button @click="addNewMember" class="bg-teal-100 text-teal-600 px-3 rounded-lg font-bold text-sm">+</button>
+                      </div>
+
+                      <button @click="showMemberSettings = false" class="w-full bg-teal-500 text-white py-2 rounded-xl font-bold text-sm">完成</button>
+                  </div>
+              </div>
+          </transition>
+
+          <!-- Modal: 結算報表 -->
+          <transition name="fade">
+              <div v-if="showSettlement" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                  <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl">
+                      <h3 class="font-bold text-indigo-600 mb-1 text-center">💰 AA 結算報表</h3>
+                      <p class="text-[10px] text-gray-400 text-center mb-4">假設所有款項由「{{members[0]}}」先墊付</p>
+                      
+                      <div class="space-y-3 mb-4 max-h-[50vh] overflow-y-auto hide-scrollbar">
+                          <div v-for="(amount, idx) in settlement" :key="idx" class="flex justify-between items-center border-b border-gray-50 pb-2">
+                              <div class="flex items-center gap-2">
+                                  <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-xs font-bold">{{ (members[idx] || '?').charAt(0) }}</span>
+                                  <span class="text-sm font-bold text-gray-600">{{ members[idx] }}</span>
+                              </div>
+                              <div class="text-right">
+                                  <div class="text-xs text-gray-400">應付</div>
+                                  <div class="font-bold text-indigo-600">HK${{ formatNumber(amount.toFixed(1)) }}</div>
+                              </div>
+                          </div>
+                          <div v-if="Object.keys(settlement).length === 0" class="text-center text-gray-300 text-xs py-4">暫無 AA 帳目</div>
+                      </div>
+                      <button @click="showSettlement = false" class="w-full bg-gray-100 text-gray-600 py-2 rounded-xl font-bold text-sm">關閉</button>
+                  </div>
               </div>
           </transition>
 
@@ -297,6 +375,12 @@
                   const photos = ref([]);
                   const rate = ref(0.052);
                   const selectedExportDates = ref([]);
+                  
+                  // AA 功能變數
+                  const members = ref(['我', '旅伴A']);
+                  const newMemberName = ref('');
+                  const showMemberSettings = ref(false);
+                  const showSettlement = ref(false);
 
                   const categories = [
                       { id: 'shop', name: '購物', activeClass: 'bg-pink-500 text-white shadow-md shadow-pink-200', bg: 'bg-pink-100', text: 'text-pink-500' },
@@ -307,7 +391,7 @@
                       { id: 'ticket', name: '門票', activeClass: 'bg-yellow-500 text-white shadow-md shadow-yellow-200', bg: 'bg-yellow-100', text: 'text-yellow-600' },
                       { id: 'other', name: '其他', activeClass: 'bg-gray-600 text-white shadow-md shadow-gray-200', bg: 'bg-gray-100', text: 'text-gray-500' }
                   ];
-                  const newItem = ref({ name: '', price: '', priceHKD: '', forWhom: '', category: 'shop' });
+                  const newItem = ref({ name: '', price: '', priceHKD: '', forWhom: '', category: 'shop', sharedWith: [0] }); // 預設只有自己
                   const tempShopImg = ref(null);
 
                   const calcYen = ref('');
@@ -334,46 +418,92 @@
                           const savedRate = localStorage.getItem('minty_rate_v2');
                           if (savedRate) rate.value = Number(savedRate);
                       } catch(e) {}
+                      try {
+                          const savedMembers = localStorage.getItem('minty_members_v2'); // v2 for dynamic list
+                          if (savedMembers) members.value = JSON.parse(savedMembers);
+                      } catch(e) {}
                   });
 
                   watch(itinerary, (v) => localStorage.setItem('minty_itinerary_v3', JSON.stringify(v)), { deep: true });
                   watch(shoppingList, (v) => localStorage.setItem('minty_shopping_v2', JSON.stringify(v)), { deep: true });
                   watch(photos, (v) => localStorage.setItem('minty_photos_v2', JSON.stringify(v)), { deep: true });
                   watch(rate, (v) => localStorage.setItem('minty_rate_v2', v));
+                  watch(members, (v) => localStorage.setItem('minty_members_v2', JSON.stringify(v)), { deep: true });
 
                   const toggleEdit = (d, e) => { const evt = itinerary.value[d].events[e]; if(evt.isEditing) { evt.isEditing = false; sortEvents(d); } else { evt.isEditing = true; } };
                   const addEvent = (d) => itinerary.value[d].events.push({ id: Date.now(), time: '12:00', activity: '新行程', location: '', isEditing: true });
                   const deleteEvent = (d, e) => { if(confirm('刪除？')) itinerary.value[d].events.splice(e, 1); };
                   const getMapLink = (l) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l || '大阪')}`;
-                  const copyItineraryText = () => { let t = "🇯🇵 行程分享\n"; itinerary.value.forEach(d => { t += `\n📅 ${d.date}\n`; [...d.events].sort((a,b)=>a.time.localeCompare(b.time)).forEach(e => t += `${e.time} ${e.activity} @${e.location||''}\n`); }); navigator.clipboard.writeText(t).then(()=>alert('已複製')); };
+                  
+                  // 按日期複製
+                  const copyDayItineraryText = () => {
+                      const day = itinerary.value[currentDayIndex.value];
+                      let text = `🇯🇵 大阪之旅 - ${day.date}\n\n`;
+                      const sortedEvents = [...day.events].sort((a, b) => a.time.localeCompare(b.time));
+                      sortedEvents.forEach(e => {
+                          text += `${e.time} ${e.activity}`;
+                          if(e.location) text += ` @ ${e.location}`;
+                          text += "\n";
+                      });
+                      navigator.clipboard.writeText(text).then(() => alert(`已複製 ${day.date} 的行程！`));
+                  };
+
+                  // 複製全部
+                  const copyItineraryText = () => { 
+                      let t = "🇯🇵 行程分享\n"; 
+                      itinerary.value.forEach(d => { 
+                          t += `\n📅 ${d.date}\n`; 
+                          [...d.events].sort((a,b)=>a.time.localeCompare(b.time)).forEach(e => t += `${e.time} ${e.activity} @${e.location||''}\n`); 
+                      }); 
+                      navigator.clipboard.writeText(t).then(()=>alert('整趟旅程已複製！')); 
+                  };
 
                   const compressImage = (file, w, q, cb) => { const r = new FileReader(); r.onload = (e) => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); const x = c.getContext('2d'); let nw = i.width, nh = i.height; if(nw>w){nh*=w/nw;nw=w;} c.width=nw; c.height=nh; x.drawImage(i,0,0,nw,nh); cb(c.toDataURL('image/jpeg', q)); }; i.src = e.target.result; }; r.readAsDataURL(file); };
                   const handleShopImgUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 600, 0.6, (res) => tempShopImg.value = res); };
                   
+                  // 新增旅伴
+                  const addNewMember = () => {
+                      if(newMemberName.value.trim()) {
+                          members.value.push(newMemberName.value.trim());
+                          newMemberName.value = '';
+                      }
+                  };
+
+                  // AA 選擇切換
+                  const toggleMember = (idx) => {
+                      const i = newItem.value.sharedWith.indexOf(idx);
+                      if (i > -1) newItem.value.sharedWith.splice(i, 1);
+                      else newItem.value.sharedWith.push(idx);
+                  };
+
                   const addItem = () => { 
-                      // 驗證：必須有名字，且至少有一個價格
                       if (!newItem.value.name || (!newItem.value.price && !newItem.value.priceHKD)) return; 
                       const d = new Date();
                       const dateStr = `${d.getMonth()+1}/${d.getDate()}`; 
-                      shoppingList.value.unshift({ ...newItem.value, image: tempShopImg.value, date: dateStr }); 
-                      newItem.value = { name: '', price: '', priceHKD: '', forWhom: '', category: 'shop' }; 
+                      const finalShared = newItem.value.sharedWith.length > 0 ? [...newItem.value.sharedWith] : [0];
+                      
+                      shoppingList.value.unshift({ 
+                          ...newItem.value, 
+                          sharedWith: finalShared,
+                          image: tempShopImg.value, 
+                          date: dateStr 
+                      }); 
+                      newItem.value = { name: '', price: '', priceHKD: '', forWhom: '', category: 'shop', sharedWith: [0] }; 
                       tempShopImg.value = null; 
                   };
                   const deleteItem = (i) => shoppingList.value.splice(i, 1);
                   
-                  // 總金額計算 (混合模式)
                   const totalHKD = computed(() => shoppingList.value.reduce((sum, item) => {
-                      if (item.priceHKD) return sum + Number(item.priceHKD); // 優先使用直接輸入的 HKD
-                      return sum + (Number(item.price || 0) * rate.value);   // 否則用 JPY 換算
+                      if (item.priceHKD) return sum + Number(item.priceHKD); 
+                      return sum + (Number(item.price || 0) * rate.value);   
                   }, 0).toFixed(1));
 
                   const totalYen = computed(() => shoppingList.value.reduce((sum, item) => {
                       if (item.price) return sum + Number(item.price);
-                      if (item.priceHKD) return sum + (Number(item.priceHKD) / rate.value); // 反向換算
+                      if (item.priceHKD) return sum + (Number(item.priceHKD) / rate.value); 
                       return sum;
                   }, 0).toFixed(0));
                   
-                  // 分類統計 (混合模式)
                   const categoryStats = computed(() => {
                       return categories.map(cat => {
                           const sumHKD = shoppingList.value
@@ -386,9 +516,37 @@
                       }).filter(c => c.sumHKD > 0);
                   });
 
+                  // AA 結算邏輯
+                  const settlement = computed(() => {
+                      const debts = {}; 
+                      
+                      shoppingList.value.forEach(item => {
+                          if (item.sharedWith && item.sharedWith.length > 0) {
+                              let costHKD = 0;
+                              if (item.priceHKD) costHKD = Number(item.priceHKD);
+                              else costHKD = Number(item.price || 0) * rate.value;
+
+                              const perPerson = costHKD / item.sharedWith.length;
+
+                              item.sharedWith.forEach(memberIdx => {
+                                  if (memberIdx !== 0 && members.value[memberIdx]) {
+                                      if (!debts[memberIdx]) debts[memberIdx] = 0;
+                                      debts[memberIdx] += perPerson;
+                                  }
+                              });
+                          }
+                      });
+                      return debts;
+                  });
+
                   const getCategoryName = (id) => categories.find(c => c.id === id)?.name || '其他';
                   const getCategoryBg = (id) => categories.find(c => c.id === id)?.bg || 'bg-gray-100';
                   const getCategoryText = (id) => categories.find(c => c.id === id)?.text || 'text-gray-500';
+                  
+                  const getSharedNames = (indices) => {
+                      if (!indices) return '';
+                      return indices.map(i => members.value[i]).filter(n => n).join(', ');
+                  };
 
                   const handlePhotoUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 800, 0.7, (res) => { const d = new Date(); photos.value.unshift({ src: res, date: `${d.getMonth()+1}/${d.getDate()}`, originalIndex: 0 }); }); };
                   const groupedPhotos = computed(() => { const g = {}; photos.value.forEach((p, i) => { if(!g[p.date]) g[p.date]=[]; g[p.date].push({...p, originalIndex: i}); }); return g; });
@@ -403,7 +561,7 @@
                   };
 
                   const exportAllData = () => {
-                      const fullData = { itinerary: itinerary.value, shopping: shoppingList.value, photos: photos.value, rate: rate.value, version: '5.4', backupDate: new Date().toLocaleString() };
+                      const fullData = { itinerary: itinerary.value, shopping: shoppingList.value, photos: photos.value, rate: rate.value, members: members.value, version: '6.2', backupDate: new Date().toLocaleString() };
                       downloadJSON(fullData, `Full_Backup_${Date.now()}.json`);
                   };
 
@@ -417,7 +575,7 @@
                       downloadJSON(partialData, `Partial_Backup_${Date.now()}.json`);
                   };
 
-                  const importAllData = (e) => { const file = e.target.files[0]; if(!file) return; if(!confirm('確定要導入備份嗎？這將覆蓋當前所有資料！')) return; const reader = new FileReader(); reader.onload = (evt) => { try { const data = JSON.parse(evt.target.result); if(data.itinerary) itinerary.value = data.itinerary; if(data.shopping) shoppingList.value = data.shopping; if(data.photos) photos.value = data.photos; if(data.rate) rate.value = data.rate; itinerary.value.forEach((d, i) => sortEvents(i)); alert('🎉 數據已成功恢復！'); } catch(err) { alert('備份檔格式錯誤或損壞。'); } }; reader.readAsText(file); };
+                  const importAllData = (e) => { const file = e.target.files[0]; if(!file) return; if(!confirm('確定要導入備份嗎？這將覆蓋當前所有資料！')) return; const reader = new FileReader(); reader.onload = (evt) => { try { const data = JSON.parse(evt.target.result); if(data.itinerary) itinerary.value = data.itinerary; if(data.shopping) shoppingList.value = data.shopping; if(data.photos) photos.value = data.photos; if(data.rate) rate.value = data.rate; if(data.members) members.value = data.members; itinerary.value.forEach((d, i) => sortEvents(i)); alert('🎉 數據已成功恢復！'); } catch(err) { alert('備份檔格式錯誤或損壞。'); } }; reader.readAsText(file); };
 
                   const resetAllData = () => {
                       if(confirm('⚠️ 警告：這將清除所有行程、記帳和照片數據，恢復到初始狀態。確定嗎？')) {
@@ -425,6 +583,7 @@
                           localStorage.removeItem('minty_shopping_v2');
                           localStorage.removeItem('minty_photos_v2');
                           localStorage.removeItem('minty_rate_v2');
+                          localStorage.removeItem('minty_members_v2');
                           location.reload();
                       }
                   };
@@ -435,9 +594,9 @@
                   const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
                   return {
-                      currentTab, currentDayIndex, itinerary, shoppingList, newItem, rate, totalYen, totalHKD, tempShopImg, photos, groupedPhotos, calcYen, calcHkd, showModal, modalImage, categories, selectedExportDates, categoryStats,
-                      toggleEdit, addEvent, deleteEvent, getMapLink, copyItineraryText,
-                      addItem, deleteItem, handleShopImgUpload, getCategoryName, getCategoryBg, getCategoryText,
+                      currentTab, currentDayIndex, itinerary, shoppingList, newItem, rate, totalYen, totalHKD, tempShopImg, photos, groupedPhotos, calcYen, calcHkd, showModal, modalImage, categories, selectedExportDates, categoryStats, members, newMemberName, showMemberSettings, showSettlement, settlement,
+                      toggleEdit, addEvent, deleteEvent, getMapLink, copyItineraryText, copyDayItineraryText,
+                      addItem, deleteItem, handleShopImgUpload, getCategoryName, getCategoryBg, getCategoryText, getSharedNames, toggleMember, addNewMember,
                       handlePhotoUpload, deletePhoto, openImageModal,
                       exportSpecific, exportAllData, exportByDate, importAllData, resetAllData,
                       updateHkd, updateYen, formatNumber
