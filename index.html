@@ -3,7 +3,7 @@
   <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <title>Minty Travel v7.3 (Full) ✈️</title>
+      <title>Minty Travel v8.0 (Filter) ✈️</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
       <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
@@ -101,6 +101,7 @@
 
           <!-- 2. 購物記帳頁面 -->
           <div v-if="currentTab === 'shopping'" class="p-4 space-y-4">
+              <!-- 總金額卡片 -->
               <div class="mint-gradient rounded-2xl p-5 text-white shadow-lg shadow-teal-200">
                   <div class="flex justify-between items-end">
                       <div>
@@ -120,17 +121,10 @@
                   </button>
               </div>
 
-              <div v-if="categoryStats.length > 0" class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-                  <div v-for="stat in categoryStats" :key="stat.id" class="bg-white p-3 rounded-xl border border-gray-100 min-w-[110px] flex-shrink-0 shadow-sm">
-                      <div class="text-[10px] font-bold mb-1 flex items-center gap-1" :class="stat.text || 'text-gray-500'">
-                          <span class="w-2 h-2 rounded-full" :class="stat.bg || 'bg-gray-300'"></span>
-                          {{ stat.name }}
-                      </div>
-                      <div class="font-bold text-gray-700 text-sm">HK${{ formatNumber(stat.sumHKD) }}</div>
-                  </div>
-              </div>
-
+              <!-- 新增物品區 -->
               <div class="bg-white p-4 rounded-2xl card-shadow space-y-3">
+                  <div class="text-xs font-bold text-gray-400 mb-1">✍️ 新增記帳</div>
+                  <!-- 分類選擇 -->
                   <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
                       <button v-for="cat in categories" :key="cat.id" 
                           @click="newItem.category = cat.id"
@@ -162,25 +156,33 @@
                           <input v-model.number="newItem.price" type="number" placeholder="JPY" class="w-1/2 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200">
                           <input v-model.number="newItem.priceHKD" type="number" placeholder="HKD(選填)" class="w-1/2 bg-gray-50 p-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-200 border border-dashed border-gray-300">
                       </div>
-                      <div class="relative">
-                          <button @click="$refs.shopCam.click()" class="p-2 rounded-xl transition" :class="tempShopImg ? 'bg-teal-100 text-teal-600' : 'bg-gray-100 text-gray-400'">📷</button>
-                          <input type="file" ref="shopCam" accept="image/*" capture="environment" class="hidden" @change="handleShopImgUpload">
-                          <div v-if="tempShopImg" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-                      </div>
-                      <button @click="addItem" class="bg-teal-500 text-white px-3 py-2 rounded-xl font-bold shadow-md shadow-teal-100 active:scale-95 transition text-sm whitespace-nowrap">記帳</button>
-                  </div>
-                  
-                  <div v-if="tempShopImg" class="relative inline-block mt-2">
-                      <img :src="tempShopImg" class="h-16 w-16 object-cover rounded-lg border border-teal-200">
-                      <button @click="tempShopImg = null" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                      <button @click="addItem" class="bg-teal-500 text-white px-6 py-2 rounded-xl font-bold shadow-md shadow-teal-100 active:scale-95 transition text-sm whitespace-nowrap">記帳</button>
                   </div>
               </div>
 
+              <!-- 篩選器 (New Feature) -->
+              <div class="pt-2">
+                  <div class="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                      <span class="text-xs font-bold text-gray-400 whitespace-nowrap pl-1">🔍 篩選:</span>
+                      <button @click="filterCategory = 'all'" 
+                          :class="filterCategory === 'all' ? 'bg-gray-600 text-white' : 'bg-white text-gray-500 border border-gray-200'"
+                          class="px-3 py-1.5 rounded-full text-[10px] font-bold transition whitespace-nowrap shadow-sm">
+                          全部
+                      </button>
+                      <button v-for="cat in categories" :key="cat.id"
+                          @click="filterCategory = cat.id"
+                          :class="filterCategory === cat.id ? cat.activeClass : 'bg-white text-gray-500 border border-gray-200'"
+                          class="px-3 py-1.5 rounded-full text-[10px] font-bold transition whitespace-nowrap shadow-sm">
+                          {{ cat.name }}
+                      </button>
+                  </div>
+              </div>
+
+              <!-- 列表 -->
               <div class="space-y-2 pb-20">
-                  <div v-for="(item, index) in shoppingList" :key="index" class="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 items-center relative overflow-hidden">
-                      <div @click="item.image ? openImageModal(item.image) : null" class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer ml-1" :class="!item.image ? getCategoryBg(item.category) : 'bg-gray-50 border border-gray-100'">
-                          <img v-if="item.image" :src="item.image" class="w-full h-full object-cover">
-                          <span v-else class="text-lg font-bold opacity-80" :class="getCategoryText(item.category)">{{ getCategoryName(item.category).charAt(0) }}</span>
+                  <div v-for="(item, index) in filteredShoppingList" :key="item.id" class="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 items-center relative overflow-hidden">
+                      <div class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center ml-1" :class="getCategoryBg(item.category)">
+                          <span class="text-lg font-bold opacity-80" :class="getCategoryText(item.category)">{{ getCategoryName(item.category).charAt(0) }}</span>
                       </div>
                       <div class="flex-1 min-w-0">
                           <div class="font-bold text-gray-700 truncate">{{ item.name }}</div>
@@ -198,9 +200,10 @@
                           <div v-if="item.priceHKD" class="text-[10px] text-gray-400 bg-gray-100 px-1 rounded mt-0.5">電子支付</div>
                           <div v-else class="text-[10px] text-gray-300">約 HK${{ (item.price * rate).toFixed(0) }}</div>
                       </div>
-                      <button @click="deleteItem(index)" class="absolute top-3 right-2 text-xs text-white bg-red-400 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-red-500 transition">✕</button>
+                      <button @click="deleteItem(item)" class="absolute top-3 right-2 text-xs text-white bg-red-400 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-red-500 transition">✕</button>
                   </div>
                   <div v-if="shoppingList.length === 0" class="text-center text-gray-300 py-10 text-sm">還沒買東西呢 🛍️</div>
+                  <div v-else-if="filteredShoppingList.length === 0" class="text-center text-gray-300 py-10 text-sm">此分類沒有帳目 🔍</div>
               </div>
               
               <div class="fixed bottom-24 right-4 flex flex-col gap-2 items-end">
@@ -209,32 +212,7 @@
               </div>
           </div>
 
-          <!-- 3. 照片記錄頁面 -->
-          <div v-if="currentTab === 'photos'" class="p-4 pb-24">
-              <div @click="$refs.photoInput.click()" class="w-full h-24 border-2 border-dashed border-teal-300 rounded-xl flex flex-col items-center justify-center bg-teal-50 cursor-pointer hover:bg-teal-100 transition mb-6">
-                  <span class="text-2xl">📷</span>
-                  <span class="text-xs text-teal-500 font-bold mt-1">新增今日照片</span>
-                  <input type="file" ref="photoInput" accept="image/*" class="hidden" @change="handlePhotoUpload">
-              </div>
-              <div v-for="(group, date) in groupedPhotos" :key="date" class="mb-6">
-                  <h3 class="font-bold text-teal-600 mb-2 pl-1 flex items-center gap-2">
-                      📅 {{ date }} <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ group.length }} 張</span>
-                  </h3>
-                  <div class="grid grid-cols-3 gap-2">
-                      <div v-for="(photo, idx) in group" :key="idx" class="aspect-square rounded-lg overflow-hidden relative group bg-gray-100">
-                          <img :src="photo.src" @click="openImageModal(photo.src)" class="w-full h-full object-cover cursor-pointer">
-                          <button @click="deletePhoto(photo.originalIndex)" class="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">✕</button>
-                      </div>
-                  </div>
-              </div>
-              <div v-if="photos.length === 0" class="text-center text-gray-300 py-10">暫無照片</div>
-              
-              <div class="mt-8 text-center">
-                  <button @click="exportSpecific('photos')" class="bg-teal-50 text-teal-600 px-6 py-2 rounded-full text-xs font-bold">📥 導出所有照片</button>
-              </div>
-          </div>
-
-          <!-- 4. 工具頁面 -->
+          <!-- 3. 工具頁面 -->
           <div v-if="currentTab === 'tools'" class="p-4 space-y-4">
               <!-- 行程設定 -->
               <div class="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm">
@@ -268,7 +246,7 @@
                       </button>
                   </div>
                   <div class="mb-4">
-                      <p class="text-xs font-bold text-gray-500 mb-2">📅 按日期導出 (行程+記帳+照片)</p>
+                      <p class="text-xs font-bold text-gray-500 mb-2">📅 按日期導出 (行程+記帳)</p>
                       <div class="flex flex-wrap gap-2 mb-3">
                           <label v-for="(day, idx) in itinerary" :key="idx" class="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-lg cursor-pointer select-none border" :class="selectedExportDates.includes(day.date) ? 'border-teal-500 bg-teal-50 text-teal-600' : 'border-transparent'">
                               <input type="checkbox" :value="day.date" v-model="selectedExportDates" class="hidden">
@@ -311,18 +289,9 @@
           <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-3 flex justify-between items-center z-30 max-w-md mx-auto text-[10px]">
               <button @click="currentTab = 'itinerary'" :class="currentTab === 'itinerary' ? 'text-teal-500' : 'text-gray-400'" class="flex flex-col items-center gap-1 transition"><span class="text-xl">📅</span> 行程</button>
               <button @click="currentTab = 'shopping'" :class="currentTab === 'shopping' ? 'text-teal-500' : 'text-gray-400'" class="flex flex-col items-center gap-1 transition"><span class="text-xl">🛍️</span> 記帳</button>
-              <button @click="currentTab = 'photos'" :class="currentTab === 'photos' ? 'text-teal-500' : 'text-gray-400'" class="flex flex-col items-center gap-1 transition"><span class="text-xl">📷</span> 相冊</button>
               <button @click="currentTab = 'tools'" :class="currentTab === 'tools' ? 'text-teal-500' : 'text-gray-400'" class="flex flex-col items-center gap-1 transition"><span class="text-xl">🧰</span> 工具</button>
           </nav>
           
-          <!-- Modal: 圖片查看 -->
-          <transition name="fade">
-              <div v-if="showModal" @click="showModal = false" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                  <img :src="modalImage" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
-                  <button class="absolute top-4 right-4 text-white text-3xl">×</button>
-              </div>
-          </transition>
-
           <!-- Modal: 成員設定 -->
           <transition name="fade">
               <div v-if="showMemberSettings" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -404,9 +373,9 @@
                   const itinerary = ref(defaultItinerary);
                   
                   const shoppingList = ref([]);
-                  const photos = ref([]);
                   const rate = ref(0.052);
                   const selectedExportDates = ref([]);
+                  const filterCategory = ref('all'); // 篩選狀態
                   
                   const members = ref(['我', '旅伴A']);
                   const newMemberName = ref('');
@@ -423,12 +392,9 @@
                       { id: 'other', name: '其他', activeClass: 'bg-gray-600 text-white shadow-md shadow-gray-200', bg: 'bg-gray-100', text: 'text-gray-500' }
                   ];
                   const newItem = ref({ name: '', price: '', priceHKD: '', forWhom: '', category: 'shop', sharedWith: [0] });
-                  const tempShopImg = ref(null);
 
                   const calcYen = ref('');
                   const calcHkd = ref('');
-                  const showModal = ref(false);
-                  const modalImage = ref('');
 
                   // 日期計算邏輯
                   const updateItineraryDates = () => {
@@ -497,10 +463,6 @@
                           if (savedShopping) shoppingList.value = JSON.parse(savedShopping);
                       } catch(e) {}
                       try {
-                          const savedPhotos = localStorage.getItem('minty_photos_v2');
-                          if (savedPhotos) photos.value = JSON.parse(savedPhotos);
-                      } catch(e) {}
-                      try {
                           const savedRate = localStorage.getItem('minty_rate_v2');
                           if (savedRate) rate.value = Number(savedRate);
                       } catch(e) {}
@@ -545,7 +507,6 @@
                   watch(tripTitle, (v) => localStorage.setItem('minty_title_v1', v));
                   watch(itinerary, (v) => localStorage.setItem('minty_itinerary_v3', JSON.stringify(v)), { deep: true });
                   watch(shoppingList, (v) => localStorage.setItem('minty_shopping_v2', JSON.stringify(v)), { deep: true });
-                  watch(photos, (v) => localStorage.setItem('minty_photos_v2', JSON.stringify(v)), { deep: true });
                   watch(rate, (v) => localStorage.setItem('minty_rate_v2', v));
                   watch(members, (v) => localStorage.setItem('minty_members_v2', JSON.stringify(v)), { deep: true });
 
@@ -575,9 +536,6 @@
                       }); 
                       navigator.clipboard.writeText(t).then(()=>alert('整趟旅程已複製！')); 
                   };
-
-                  const compressImage = (file, w, q, cb) => { const r = new FileReader(); r.onload = (e) => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); const x = c.getContext('2d'); let nw = i.width, nh = i.height; if(nw>w){nh*=w/nw;nw=w;} c.width=nw; c.height=nh; x.drawImage(i,0,0,nw,nh); cb(c.toDataURL('image/jpeg', q)); }; i.src = e.target.result; }; r.readAsDataURL(file); };
-                  const handleShopImgUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 600, 0.6, (res) => tempShopImg.value = res); };
                   
                   const addNewMember = () => {
                       if(newMemberName.value.trim()) {
@@ -590,21 +548,17 @@
                       if (index === 0) return; // 不能刪除自己
                       const memberName = members.value[index];
                       if (confirm(`確定要刪除 ${memberName} 嗎？\n這將從所有記帳紀錄中移除此人，並重新計算 AA 金額。`)) {
-                          // 1. 從所有購物清單中移除該 index
                           shoppingList.value.forEach(item => {
                               const idxInItem = item.sharedWith.indexOf(index);
                               if (idxInItem > -1) {
                                   item.sharedWith.splice(idxInItem, 1);
-                                  // 如果刪除後沒人了，預設歸回自己
                                   if (item.sharedWith.length === 0) item.sharedWith.push(0);
                               }
-                              // 2. 修正大於該 index 的數值 (因為陣列長度變短了，後面的 index 會往前移)
                               item.sharedWith = item.sharedWith.map(i => {
                                   if (i > index) return i - 1;
                                   return i;
                               });
                           });
-                          // 3. 刪除成員
                           members.value.splice(index, 1);
                       }
                   };
@@ -622,15 +576,21 @@
                       const finalShared = newItem.value.sharedWith.length > 0 ? [...newItem.value.sharedWith] : [0];
                       
                       shoppingList.value.unshift({ 
-                          ...newItem.value, 
+                          ...newItem.value,
+                          id: Date.now(), // 加入 ID 方便刪除
                           sharedWith: finalShared,
-                          image: tempShopImg.value, 
                           date: dateStr 
                       }); 
                       newItem.value = { name: '', price: '', priceHKD: '', forWhom: '', category: 'shop', sharedWith: [0] }; 
-                      tempShopImg.value = null; 
                   };
-                  const deleteItem = (i) => shoppingList.value.splice(i, 1);
+
+                  // 刪除記帳 (接收整個 item 物件)
+                  const deleteItem = (itemToDelete) => {
+                      const idx = shoppingList.value.indexOf(itemToDelete);
+                      if (idx > -1) {
+                          shoppingList.value.splice(idx, 1);
+                      }
+                  };
                   
                   const totalHKD = computed(() => shoppingList.value.reduce((sum, item) => {
                       if (item.priceHKD) return sum + Number(item.priceHKD); 
@@ -653,6 +613,12 @@
                               }, 0);
                           return { ...cat, sumHKD: sumHKD.toFixed(0) };
                       }).filter(c => c.sumHKD > 0);
+                  });
+
+                  // 篩選後的列表
+                  const filteredShoppingList = computed(() => {
+                      if (filterCategory.value === 'all') return shoppingList.value;
+                      return shoppingList.value.filter(item => item.category === filterCategory.value);
                   });
 
                   const settlement = computed(() => {
@@ -684,10 +650,6 @@
                       return indices.map(i => members.value[i]).filter(n => n).join(', ');
                   };
 
-                  const handlePhotoUpload = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], 800, 0.7, (res) => { const d = new Date(); photos.value.unshift({ src: res, date: `${d.getMonth()+1}/${d.getDate()}`, originalIndex: 0 }); }); };
-                  const groupedPhotos = computed(() => { const g = {}; photos.value.forEach((p, i) => { if(!g[p.date]) g[p.date]=[]; g[p.date].push({...p, originalIndex: i}); }); return g; });
-                  const deletePhoto = (i) => { if(confirm('刪除？')) photos.value.splice(i, 1); };
-
                   const downloadJSON = (d, n) => { const b = new Blob([JSON.stringify(d)], {type:'application/json'}); const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = n; document.body.appendChild(l); l.click(); document.body.removeChild(l); };
                   
                   const exportToCSV = () => {
@@ -717,7 +679,6 @@
                   const exportSpecific = (type) => {
                       if(type === 'itinerary') downloadJSON(itinerary.value, 'Itinerary.json');
                       if(type === 'shopping') downloadJSON(shoppingList.value, 'ShoppingList.json');
-                      if(type === 'photos') downloadJSON(photos.value, 'Photos.json');
                   };
 
                   const exportAllData = () => {
@@ -726,10 +687,9 @@
                           startDate: startDate.value,
                           itinerary: itinerary.value, 
                           shopping: shoppingList.value, 
-                          photos: photos.value, 
                           rate: rate.value, 
                           members: members.value, 
-                          version: '7.3', 
+                          version: '8.0', 
                           backupDate: new Date().toLocaleString() 
                       };
                       downloadJSON(fullData, `Full_Backup_${Date.now()}.json`);
@@ -740,12 +700,11 @@
                       const filteredItinerary = itinerary.value.filter(day => selectedExportDates.value.includes(day.date));
                       const targetDatesShort = selectedExportDates.value.map(d => { const parts = d.split(' ')[0].split('/'); return `${parseInt(parts[0])}/${parseInt(parts[1])}`; });
                       const filteredShopping = shoppingList.value.filter(item => item.date && targetDatesShort.includes(item.date));
-                      const filteredPhotos = photos.value.filter(p => targetDatesShort.includes(p.date));
-                      const partialData = { note: `Exported for dates: ${selectedExportDates.value.join(', ')}`, itinerary: filteredItinerary, shopping: filteredShopping, photos: filteredPhotos, rate: rate.value };
+                      const partialData = { note: `Exported for dates: ${selectedExportDates.value.join(', ')}`, itinerary: filteredItinerary, shopping: filteredShopping, rate: rate.value };
                       downloadJSON(partialData, `Partial_Backup_${Date.now()}.json`);
                   };
 
-                  const importAllData = (e) => { const file = e.target.files[0]; if(!file) return; if(!confirm('確定要導入備份嗎？這將覆蓋當前所有資料！')) return; const reader = new FileReader(); reader.onload = (evt) => { try { const data = JSON.parse(evt.target.result); if(data.title) tripTitle.value = data.title; if(data.startDate) startDate.value = data.startDate; if(data.itinerary) itinerary.value = data.itinerary; if(data.shopping) shoppingList.value = data.shopping; if(data.photos) photos.value = data.photos; if(data.rate) rate.value = data.rate; if(data.members) members.value = data.members; updateItineraryDates(); itinerary.value.forEach((d, i) => sortEvents(i)); alert('🎉 數據已成功恢復！'); } catch(err) { alert('備份檔格式錯誤或損壞。'); } }; reader.readAsText(file); };
+                  const importAllData = (e) => { const file = e.target.files[0]; if(!file) return; if(!confirm('確定要導入備份嗎？這將覆蓋當前所有資料！')) return; const reader = new FileReader(); reader.onload = (evt) => { try { const data = JSON.parse(evt.target.result); if(data.title) tripTitle.value = data.title; if(data.startDate) startDate.value = data.startDate; if(data.itinerary) itinerary.value = data.itinerary; if(data.shopping) shoppingList.value = data.shopping; if(data.rate) rate.value = data.rate; if(data.members) members.value = data.members; updateItineraryDates(); itinerary.value.forEach((d, i) => sortEvents(i)); alert('🎉 數據已成功恢復！'); } catch(err) { alert('備份檔格式錯誤或損壞。'); } }; reader.readAsText(file); };
 
                   const resetAllData = () => {
                       if(confirm('⚠️ 警告：這將清除所有行程、記帳和照片數據，恢復到初始狀態。確定嗎？')) {
@@ -754,16 +713,14 @@
                       }
                   };
 
-                  const openImageModal = (src) => { modalImage.value = src; showModal.value = true; };
                   const updateHkd = () => { calcHkd.value = (calcYen.value * rate.value).toFixed(2); };
                   const updateYen = () => { calcYen.value = (calcHkd.value / rate.value).toFixed(0); };
                   const formatNumber = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
                   return {
-                      currentTab, currentDayIndex, itinerary, shoppingList, newItem, rate, totalYen, totalHKD, tempShopImg, photos, groupedPhotos, calcYen, calcHkd, showModal, modalImage, categories, selectedExportDates, categoryStats, members, newMemberName, showMemberSettings, showSettlement, settlement, tripTitle, startDate, endDate, tripDateRange, safeDate,
+                      currentTab, currentDayIndex, itinerary, shoppingList, newItem, rate, totalYen, totalHKD, calcYen, calcHkd, categories, selectedExportDates, categoryStats, members, newMemberName, showMemberSettings, showSettlement, settlement, tripTitle, startDate, endDate, tripDateRange, safeDate, filterCategory, filteredShoppingList,
                       toggleEdit, addEvent, deleteEvent, getMapLink, copyItineraryText, copyDayItineraryText,
-                      addItem, deleteItem, handleShopImgUpload, getCategoryName, getCategoryBg, getCategoryText, getSharedNames, toggleMember, addNewMember, deleteMember,
-                      handlePhotoUpload, deletePhoto, openImageModal,
+                      addItem, deleteItem, getCategoryName, getCategoryBg, getCategoryText, getSharedNames, toggleMember, addNewMember, deleteMember,
                       exportSpecific, exportAllData, exportByDate, importAllData, exportToCSV, resetAllData,
                       updateHkd, updateYen, formatNumber
                   };
